@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="src/style.css">
+  </head>
+  <body>
+    <canvas id="candlestickChart" width="<?= typeof(width) !== 'undefined' ? width : 98 ?>" height="<?= typeof(height) !== 'undefined' ? height : 18 ?>"></canvas>
+    <script>
+      // Get the canvas element and its context
+      const canvas = document.getElementById('candlestickChart');
+      const ctx = canvas.getContext('2d');
+
+      // Define the candlestick data
+      const candleData = {
+          open: <?= open ?>,
+          high: <?= high ?>,
+          low: <?= low ?>,
+          close: <?= close ?>
+      };
+
+      // Calculate the dimensions and positions for drawing the candlestick
+      const candleHeight = 50; // Height of the candlestick
+      const candleY = (canvas.height - candleHeight) / 2; // Y position of the candlestick
+      const scaleX = canvas.width / (candleData.high - candleData.low); // Scale X to fit the candlestick
+
+      // Draw the candlestick
+      ctx.strokeStyle = 'black'; // Stroke color
+      ctx.lineWidth = 1; // Line width
+
+      // Draw the upper shadow (high - open)
+      ctx.beginPath();
+      ctx.moveTo((candleData.open - candleData.low) * scaleX, candleY + candleHeight / 2);
+      ctx.lineTo((candleData.high - candleData.low) * scaleX, candleY + candleHeight / 2);
+      ctx.stroke();
+
+      // Draw the lower shadow (close - low)
+      ctx.beginPath();
+      ctx.moveTo((candleData.close - candleData.low) * scaleX, candleY + candleHeight / 2);
+      ctx.lineTo((candleData.low - candleData.low) * scaleX, candleY + candleHeight / 2);
+      ctx.stroke();
+
+      // Draw the candle body (open to close)
+      ctx.fillStyle = ((candleData.close > candleData.open) ?
+        <?= typeof(rising) !== 'undefined' ? rising : 'green' ?> :
+        <?= typeof(falling) !== 'undefined' ? falling : 'red' ?>);
+      ctx.fillRect((candleData.close - candleData.low) * scaleX, candleY, (candleData.open - candleData.close) * scaleX, candleHeight);
+
+      // Convert canvas to base64 image
+      const imageData = canvas.toDataURL('image/png').split(',')[1];
+      google.script.run.withSuccessHandler(function(returnValue) {
+        google.script.host.close();
+      }).returnImageData(imageData);
+    </script>
+  </body>
+</html>

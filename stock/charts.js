@@ -35,33 +35,6 @@ function emptyTrash() {
   }
 }
 
-function setFolderUs() {
-  createFolder("Chart(US)", "replace");
-  emptyTrash();
-}
-
-function setFolderKr() {
-  createFolder("Chart(KR)", "replace");
-  emptyTrash();
-}
-
-/** ############################## Slides ############################### */
-
-/** @param {SlidesApp.Presentation} slides */
-/** @param {SpreadsheetApp.EmbeddedChart} chart */
-/** @return {Blob} */
-function getTransparentChart(slides, chart) {
-  var slide = slides.getSlides()[0];
-  var id = slides.getId();
-  slide.getShapes().forEach(s => s.remove());
-  slide.getBackground().setTransparent();
-  slide.getPageProperties().setPageWidth(500).setPageHeight(100);
-  slide.insertSheetsChart(chart);
-  slides.saveAndClose();
-  var url = `https://docs.google.com/feeds/download/presentations/Export?id=${id}&exportFormat=png`;
-  return UrlFetchApp.fetch(url, {headers: {authorization: "Bearer " + ScriptApp.getOAuthToken()}}).getBlob();
-}
-
 /** ############################### Images ############################## */
 
 /** @param {String} sheet_name */
@@ -181,91 +154,33 @@ function drawCandlestick(values, sheet, width=500, height=100, rising="green", f
 /** @param {String} [if_exists="replace"] */
 /** @param {Integer} [start=2] */
 /** @param {Integer} [end=null] */
+/** @param {Boolean} [clear=true] */
 /** @param {Integer} [limit=null] */
 /** @param {Number} [width=500] */
 /** @param {Number} [height=100] */
 /** @param {String} [rising="green"] */
 /** @param {String} [falling="red"] */
-function updateCandlestick(values, sheet_name, folder_name, if_exists="replace", start=2, end=null,
-                          limit=null, width=500, height=100, rising="green", falling="red") {
+function updateCandlestick(values, sheet_name, folder_name, if_exists="ignore", start=2, end=null,
+                          clear=true, limit=null, width=500, height=100, rising="green", falling="red") {
   var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = spreadsheet.getSheetByName(sheet_name);
   var tempSheet = createSheet(spreadsheet, "Temp"+start);
   var folder = createFolder(folder_name, if_exists);
   if (typeof(start) != "number") { start = 2; }
   if (typeof(end) != "number") { end = sheet.getLastRow(); }
-  sheet.getRange(start, 2, end-start+1).clear();
+  if (clear) { sheet.getRange(start, 2, end-start+1).clear(); }
 
   for (let i = start ; i < (end+1) ; i++) {
     let ticker = sheet.getRange(i, 1).getValue();
-    if (ticker in values) { // SORT BY Date DESC
+    let range = sheet.getRange(i, 2);
+    if ((ticker in values) & !(range.getValue())) { // SORT BY Date DESC
       imageBlob = drawCandlestick(values[ticker].slice(0,limit).reverse(), tempSheet, width, height, rising, falling);
       var fileName = ticker + "_" + Utilities.formatDate(new Date(), "Asia/Seoul", "yyyyMMdd_HHmmss") + ".png";
       var file = folder.createFile(imageBlob.setName(fileName));
-      sheet.getRange(i, 2).setValue("https://drive.google.com/uc?id=" + file.getId());
+      range.setValue("https://drive.google.com/uc?id=" + file.getId());
     }
   }
   spreadsheet.deleteSheet(tempSheet);
-}
-
-/** @param {Integer} start */
-/** @param {Integer} end */
-/** @param {Integer} [limit=20] */
-function updateCandlestickUs(start, end, limit=20) {
-  values = groupbyValues("Ohlc(US)", "A2:F", 0, [5, 3, 1, 4, 2]);
-  updateCandlestick(values, "Chart(US)", "Chart(US)", "ignore", start, end, limit, 500, 100, "#0f9d58", "#FF3B30");
-}
-
-function updateCandlestickUs1() { updateCandlestickUs(2, 100); }
-function updateCandlestickUs2() { updateCandlestickUs(101, null); }
-
-/** @param {Integer} start */
-/** @param {Integer} end */
-/** @param {Integer} [limit=20] */
-function updateCandlestickKr(start, end, limit=20) {
-  values = groupbyValues("Ohlc(KR)", "A2:F", 0, [5, 3, 1, 4, 2]);
-  updateCandlestick(values, "Chart(KR)", "Chart(KR)", "ignore", start, end, limit, 500, 100, "#FF3B30", "#007AFF");
-}
-
-function updateCandlestickKr1() { updateCandlestickKr(2, 100); }
-function updateCandlestickKr2() { updateCandlestickKr(101, null); }
-
-/** ######################### Candlestick (HTML) ######################## */
-
-/** @param {Array.<Number>} data */
-/** @param {Number} [width=500] */
-/** @param {Number} [height=100] */
-/** @param {String} [rising="green"] */
-/** @param {String} [falling="red"] */
-/** @return {Blob} */
-function drawCandlestickHtml(data, width=500, height=100, rising="green", falling="red") {
-  var template = HtmlService.createTemplateFromFile("candlestick");
-  template.open = data[0];
-  template.high = data[1];
-  template.low = data[2];
-  template.close = data[3];
-  template.width = width;
-  template.height = height;
-  template.rising = rising;
-  template.falling = falling;
-
-  var html = template.evaluate();
-  var userInterface = html.setWidth(1).setHeight(1);
-  SpreadsheetApp.getUi().showModelessDialog(userInterface, "Generating Chart");
-
-  var imageData = null;
-  while (imageData === null) {
-    Utilities.sleep(100);
-    imageData = CacheService.getScriptCache().get("tempImageData");
-  }
-
-  CacheService.getScriptCache().remove("tempImageData");
-  return Utilities.newBlob(Utilities.base64Decode(imageData), "image/png", "image.png");
-}
-
-/** @param {Blob} imageData */
-function returnImageData(imageData) {
-  CacheService.getScriptCache().put("tempImageData", imageData, 60);
 }
 
 /** ############################# Sparkline ############################# */
@@ -316,49 +231,29 @@ function drawSparkline(values, dimension=0, metric=1, width=500, height=100, lin
 /** @param {String} [if_exists="replace"] */
 /** @param {Integer} [start=2] */
 /** @param {Integer} [end=null] */
+/** @param {Boolean} [clear=true] */
 /** @param {Integer} [limit=null] */
 /** @param {Integer} [width=500] */
 /** @param {Integer} [height=100] */
 /** @param {Integer} [line=1] */
 /** @param {String} [rising="green"] */
 /** @param {String} [falling="red"] */
-function updateSparkline(values, sheet_name, folder_name, if_exists="replace", start=2, end=null,
-                        limit=null, width=500, height=100, line=1, rising="green", falling="red") {
+function updateSparkline(values, sheet_name, folder_name, if_exists="ignore", start=2, end=null,
+                        clear=true, limit=null, width=500, height=100, line=1, rising="green", falling="red") {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheet_name);
   var folder = createFolder(folder_name, if_exists);
   if (typeof(start) != "number") { start = 2; }
   if (typeof(end) != "number") { end = sheet.getLastRow(); }
-  sheet.getRange(start, 3, end-start+1).clear();
+  if (clear) { sheet.getRange(start, 3, end-start+1).clear(); }
 
   for (let i = start ; i < (end+1) ; i++) {
     let ticker = sheet.getRange(i, 1).getValue();
-    if (ticker in values) { // SORT BY Date DESC
+    let range = sheet.getRange(i, 3);
+    if ((ticker in values) & !(range.getValue())) { // SORT BY Date DESC
       imageBlob = drawSparkline(values[ticker].slice(0,limit).reverse(), 0, 1, width, height, line, rising, falling);
       var fileName = ticker + "_" + Utilities.formatDate(new Date(), "Asia/Seoul", "yyyyMMdd_HHmmss") + ".png";
       var file = folder.createFile(imageBlob.setName(fileName));
-      sheet.getRange(i, 3).setValue("https://drive.google.com/uc?id=" + file.getId());
+      range.setValue("https://drive.google.com/uc?id=" + file.getId());
     }
   }
 }
-
-/** @param {Integer} start */
-/** @param {Integer} end */
-/** @param {Integer} [limit=200] */
-function updateSparklineUs(start, end, limit=200) {
-  values = groupbyValues("Ohlc(US)", "A2:F", 0, [5, 4]);
-  updateSparkline(values, "Chart(US)", "Chart(US)", "ignore", start, end, limit, 500, 100, 3, "#0f9d58", "#FF3B30");
-}
-
-function updateSparklineUs1() { updateSparklineUs(2, 100); }
-function updateSparklineUs2() { updateSparklineUs(101, null); }
-
-/** @param {Integer} start */
-/** @param {Integer} end */
-/** @param {Integer} [limit=240] */
-function updateSparklineKr(start, end, limit=240) {
-  values = groupbyValues("Ohlc(KR)", "A2:F", 0, [5, 4]);
-  updateSparkline(values, "Chart(KR)", "Chart(KR)", "ignore", start, end, limit, 500, 100, 3, "#FF3B30", "#007AFF");
-}
-
-function updateSparklineKr1() { updateSparklineKr(2, 100); }
-function updateSparklineKr2() { updateSparklineKr(101, null); }

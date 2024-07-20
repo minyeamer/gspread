@@ -113,6 +113,18 @@ function groupbyValues(sheet_name, a1_notation, key_column, value_columns) {
   return grouped;
 }
 
+/** @param {SpreadsheetApp.Spreadsheet} spreadsheet */
+/** @param {String} sheet_name */
+/** @return {SpreadsheetApp.Sheet} */
+function createSheet(spreadsheet, sheet_name) {
+  var sheet = spreadsheet.getSheetByName(sheet_name);
+  if (!sheet) {
+    return spreadsheet.insertSheet(sheet_name);
+  } else {
+    return sheet;
+  }
+}
+
 /** ############################ Candlestick ############################ */
 
 /** @param {Object.<String, Array.<Array.<number>>>} values */
@@ -176,9 +188,9 @@ function drawCandlestick(values, sheet, width=500, height=100, rising="green", f
 /** @param {String} [falling="red"] */
 function updateCandlestick(values, sheet_name, folder_name, if_exists="replace", start=2, end=null,
                           limit=null, width=500, height=100, rising="green", falling="red") {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName(sheet_name);
-  var tempSheet = ss.insertSheet("Temp"+start);
+  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = spreadsheet.getSheetByName(sheet_name);
+  var tempSheet = createSheet(spreadsheet, "Temp"+start);
   var folder = createFolder(folder_name, if_exists);
   if (typeof(start) != "number") { start = 2; }
   if (typeof(end) != "number") { end = sheet.getLastRow(); }
@@ -193,7 +205,7 @@ function updateCandlestick(values, sheet_name, folder_name, if_exists="replace",
       sheet.getRange(i, 2).setValue("https://drive.google.com/uc?id=" + file.getId());
     }
   }
-  ss.deleteSheet(tempSheet);
+  spreadsheet.deleteSheet(tempSheet);
 }
 
 /** @param {Integer} start */

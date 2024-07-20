@@ -107,13 +107,3 @@ function replaceValues(values, sheet, range) {
   range.clearContent();
   sheet.getRange(range.getRow(), range.getColumn(), values.length, numColumns).setValues(values);
 }
-
-function setPriceUs() {
-  var columns = ["Ticker", "Open", "High", "Low", "Close", "Date"];
-  setPrice("Chart(US)", "A2:A", "Ohlc(US)", "A2:F", columns, 200, 2);
-}
-
-function setPriceKr() {
-  var columns = ["Ticker", "Open", "High", "Low", "Close", "Date"];
-  setPrice("Chart(KR)", "E2:E", "Ohlc(KR)", "A2:F", columns, 240, 0);
-}

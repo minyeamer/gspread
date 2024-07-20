@@ -26,15 +26,6 @@ function createFolder(folder_name, if_exists="ignore") {
   }
 }
 
-function emptyTrash() {
-  try {
-    Drive.Files.emptyTrash();
-    Logger.log('Trash emptied successfully.');
-  } catch (error) {
-    Logger.log('Error emptying trash: ' + error);
-  }
-}
-
 /** ############################### Images ############################## */
 
 /** @param {String} sheet_name */
